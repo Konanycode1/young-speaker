@@ -1,0 +1,39 @@
+{
+  "name": "young-speaker",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.28.2",
+  "scripts": {
+    "dev": "next dev -p 3901",
+    "build": "next build",
+    "start": "node .next/standalone/server.js",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "tsx prisma/seed.ts",
+    "db:init": "prisma db push --skip-generate && tsx prisma/bootstrap.ts",
+    "admin:create": "tsx prisma/create-admin.ts",
+    "superadmin:seed": "tsx prisma/seed-super-admin.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "6.12.0",
+    "bcryptjs": "^3.0.2",
+    "lucide-react": "^0.544.0",
+    "next": "^16.3.5",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "zod": "^4.1.8"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@types/node": "^24.3.1",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "eslint": "^9.35.0",
+    "eslint-config-next": "^16.3.5",
+    "prisma": "6.12.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}

@@ -1,0 +1,64 @@
+# Production stack — pulled from the registry, never built on the server.
+# Run through ./deploy.sh (it passes --env-file .env.production).
+name: young-speaker-prod
+
+x-database-url: &database-url postgresql://${POSTGRES_USER:-youngspeaker}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant}@db:5432/${POSTGRES_DB:-youngspeaker}?schema=public
+
+services:
+  web:
+    image: konanycode1/youngspeaker:latest
+    restart: unless-stopped
+    ports:
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-3901}:3901"
+    environment:
+      DATABASE_URL: *database-url
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET manquant}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?NEXT_PUBLIC_APP_URL manquant}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # Applies the Prisma schema (db push, refuses destructive changes) then bootstraps reference data.
+  migrate:
+    image: konanycode1/youngspeaker-migrate:latest
+    restart: "no"
+    environment:
+      DATABASE_URL: *database-url
+    command: ["pnpm", "db:init"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Manual only: ./deploy.sh seed-admin
+  seed-admin:
+    image: konanycode1/youngspeaker-migrate:latest
+    profiles: ["tools"]
+    restart: "no"
+    environment:
+      DATABASE_URL: *database-url
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-}
+      SUPER_ADMIN_USERNAME: ${SUPER_ADMIN_USERNAME:-admin}
+      SUPER_ADMIN_DISPLAY_NAME: ${SUPER_ADMIN_DISPLAY_NAME:-Super administration Young Speaker}
+    command: ["pnpm", "superadmin:seed"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-youngspeaker}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant}
+      POSTGRES_DB: ${POSTGRES_DB:-youngspeaker}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:

@@ -1,0 +1,306 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  VISITOR
+  YOUNG_SPEAKER
+  MODERATOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum ArticleStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum ChallengeStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum ParticipationStatus {
+  JOINED
+  COMPLETED
+}
+
+enum ExperienceStatus {
+  PRIVATE
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
+enum ReportReason {
+  OFFENSIVE
+  HARASSMENT
+  MISINFORMATION
+  DANGEROUS
+  INAPPROPRIATE_SEXUAL
+  HATE_SPEECH
+  SPAM
+  OTHER
+}
+
+model User {
+  id             String                   @id @default(cuid())
+  email          String                   @unique
+  passwordHash   String
+  role           Role                     @default(YOUNG_SPEAKER)
+  profile        Profile?
+  articles       Article[]
+  votes          Vote[]
+  comments       Comment[]
+  participations ChallengeParticipation[]
+  badges         UserBadge[]
+  reports        Report[]
+  notifications  Notification[]
+  sessions       Session[]
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  deletedAt      DateTime?
+  blockedAt      DateTime?
+  blockedReason  String?
+  blockedById    String?
+
+  @@index([role])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Profile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  username    String   @unique
+  displayName String
+  avatarUrl   String?
+  ageRange    String?
+  city        String?
+  country     String?
+  bio         String?  @db.VarChar(280)
+  interests   String[]
+  totalVotes  Int      @default(0)
+  totalPoints Int      @default(0)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([totalVotes])
+}
+
+model Article {
+  id               String        @id @default(cuid())
+  authorId         String
+  categoryId       String
+  weeklyThemeId    String?
+  title            String
+  slug             String        @unique
+  excerpt          String        @db.VarChar(300)
+  content          String        @db.Text
+  coverImage       String?
+  status           ArticleStatus @default(DRAFT)
+  sensitiveWarning String?
+  rejectionReason  String?
+  views            Int           @default(0)
+  voteCount        Int           @default(0)
+  commentCount     Int           @default(0)
+  author           User          @relation(fields: [authorId], references: [id])
+  category         Category      @relation(fields: [categoryId], references: [id])
+  weeklyTheme      WeeklyTheme?  @relation(fields: [weeklyThemeId], references: [id])
+  votes            Vote[]
+  comments         Comment[]
+  reports          Report[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  publishedAt      DateTime?
+  deletedAt        DateTime?
+
+  @@index([status, publishedAt])
+  @@index([categoryId, status])
+  @@index([weeklyThemeId, voteCount])
+  @@index([authorId])
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  articles    Article[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model WeeklyTheme {
+  id          String    @id @default(cuid())
+  title       String
+  slug        String    @unique
+  description String    @db.Text
+  coverImage  String?
+  startsAt    DateTime
+  endsAt      DateTime
+  articles    Article[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([startsAt, endsAt])
+}
+
+model Vote {
+  id          String   @id @default(cuid())
+  userId      String?
+  articleId   String
+  sessionHash String?
+  ipHash      String?
+  deviceHash  String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, articleId])
+  @@unique([sessionHash, articleId])
+  @@index([articleId, createdAt])
+}
+
+model Comment {
+  id          String    @id @default(cuid())
+  authorId    String
+  articleId   String?
+  articleSlug String?
+  parentId    String?
+  content     String    @db.VarChar(2000)
+  isHidden    Boolean   @default(false)
+  author      User      @relation(fields: [authorId], references: [id])
+  article     Article?  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  parent      Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies     Comment[] @relation("CommentReplies")
+  reports     Report[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  @@index([articleSlug, createdAt])
+  @@index([parentId])
+}
+
+model Challenge {
+  id             String                   @id @default(cuid())
+  title          String
+  slug           String                   @unique
+  description    String                   @db.Text
+  objective      String
+  imageUrl       String?
+  instructions   String                   @db.Text
+  difficulty     String
+  reward         String?
+  points         Int                      @default(0)
+  status         ChallengeStatus          @default(DRAFT)
+  startsAt       DateTime
+  endsAt         DateTime
+  participations ChallengeParticipation[]
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  @@index([status, startsAt, endsAt])
+}
+
+model ChallengeParticipation {
+  id          String              @id @default(cuid())
+  userId      String
+  challengeId String
+  status      ParticipationStatus @default(JOINED)
+  experience  String?             @db.Text
+  experiencePublic Boolean        @default(false)
+  experienceStatus ExperienceStatus @default(PRIVATE)
+  experienceRejectionReason String?
+  joinedAt    DateTime            @default(now())
+  completedAt DateTime?
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenge   Challenge           @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, challengeId])
+  @@index([challengeId, status])
+}
+
+model Badge {
+  id             String      @id @default(cuid())
+  name           String      @unique
+  slug           String      @unique
+  description    String
+  icon           String
+  pointsRequired Int?
+  isActive       Boolean     @default(true)
+  users          UserBadge[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  badgeId   String
+  awardedAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+}
+
+model Report {
+  id         String       @id @default(cuid())
+  reporterId String
+  articleId  String?
+  commentId  String?
+  reason     ReportReason
+  details    String?
+  status     ReportStatus @default(OPEN)
+  reporter   User         @relation(fields: [reporterId], references: [id])
+  article    Article?     @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  comment    Comment?     @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  createdAt  DateTime     @default(now())
+  resolvedAt DateTime?
+
+  @@index([status, createdAt])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  href      String?
+  readAt    DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt, createdAt])
+}

@@ -1,0 +1,10 @@
+"use client";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+type Profile = { username: string; displayName: string; bio: string | null; ageRange: string | null; city: string | null; country: string | null; interests: string[] };
+export function ProfileForm({ profile }: { profile: Profile }) {
+  const router = useRouter(); const [message, setMessage] = useState(""); const [error, setError] = useState("");
+  async function submit(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); setError(""); setMessage(""); const payload = Object.fromEntries(new FormData(event.currentTarget).entries()); const response = await fetch("/api/profile", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) }); const result = await response.json(); if (!response.ok) setError(result.error); else { setMessage("Profil enregistré."); router.refresh(); } }
+  return <form className="panel" onSubmit={submit}><div className="form-columns"><div className="field"><label>Nom affiché</label><input name="displayName" required defaultValue={profile.displayName} /></div><div className="field"><label>Pseudonyme</label><input name="username" required defaultValue={profile.username} /></div></div><div className="field"><label>Biographie</label><textarea name="bio" maxLength={280} rows={4} defaultValue={profile.bio ?? ""} /></div><div className="form-columns"><div className="field"><label>Tranche d’âge</label><input name="ageRange" defaultValue={profile.ageRange ?? ""} placeholder="16–18 ans" /></div><div className="field"><label>Ville</label><input name="city" defaultValue={profile.city ?? ""} /></div><div className="field"><label>Pays</label><input name="country" defaultValue={profile.country ?? ""} /></div></div><div className="field"><label>Centres d’intérêt, séparés par des virgules</label><input name="interests" defaultValue={profile.interests.join(", ")} /></div>{error && <p className="form-error">{error}</p>}{message && <p className="form-success">{message}</p>}<button className="button violet">Enregistrer mon profil</button></form>;
+}

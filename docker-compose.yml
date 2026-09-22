@@ -1,0 +1,39 @@
+services:
+  web:
+    build: .
+    ports:
+      - "3901:3901"
+    environment:
+      DATABASE_URL: postgresql://youngspeaker:youngspeaker@db:5432/youngspeaker?schema=public
+      AUTH_SECRET: local-development-secret-change-me
+      NEXT_PUBLIC_APP_URL: http://localhost:3901
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  migrate:
+    build:
+      context: .
+      target: builder
+    environment:
+      DATABASE_URL: postgresql://youngspeaker:youngspeaker@db:5432/youngspeaker?schema=public
+    command: ["pnpm", "db:init"]
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: youngspeaker
+      POSTGRES_PASSWORD: youngspeaker
+      POSTGRES_DB: youngspeaker
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U youngspeaker"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  postgres_data:

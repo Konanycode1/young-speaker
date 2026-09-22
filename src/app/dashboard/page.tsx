@@ -1,0 +1,18 @@
+import Link from "next/link";
+import { ArrowRight, FilePlus2 } from "lucide-react";
+import { db } from "@/lib/db";
+import { formatDate, formatNumber, requireSpeaker, statusLabels } from "@/lib/dashboard";
+
+export default async function DashboardPage() {
+  const user = await requireSpeaker();
+  const [articles, totals, participations, badges, theme, published, pending] = await Promise.all([
+    db.article.findMany({ where: { authorId: user.id, deletedAt: null }, orderBy: { updatedAt: "desc" }, take: 5 }),
+    db.article.aggregate({ where: { authorId: user.id, deletedAt: null }, _sum: { views: true, voteCount: true }, _count: true }),
+    db.challengeParticipation.count({ where: { userId: user.id, status: "JOINED" } }),
+    db.userBadge.count({ where: { userId: user.id } }),
+    db.weeklyTheme.findFirst({ where: { startsAt: { lte: new Date() }, endsAt: { gte: new Date() } }, orderBy: { startsAt: "desc" } }),
+    db.article.count({ where: { authorId: user.id, status: "APPROVED", deletedAt: null } }),
+    db.article.count({ where: { authorId: user.id, status: "PENDING_REVIEW", deletedAt: null } }),
+  ]);
+  return <><div className="dash-head"><div><span className="eyebrow">Bonjour {user.profile?.displayName} 👋</span><h1>Fais entendre ta voix.</h1></div><Link className="button violet" href="/dashboard/new-article"><FilePlus2 size={17} />Nouvel article</Link></div><div className="stat-grid">{[["Tous mes articles", totals._count], ["En attente", pending], ["Vues totales", totals._sum.views ?? 0], ["Votes reçus", totals._sum.voteCount ?? 0]].map(([label, value]) => <div className="stat-card" key={label}><small>{label}</small><b>{formatNumber(Number(value))}</b></div>)}</div><section className="panel"><div className="section-head compact"><h2>Mes derniers articles</h2><Link className="arrow-link" href="/dashboard/articles">Tout voir <ArrowRight size={15} /></Link></div>{articles.length ? <table className="simple-table"><thead><tr><th>Article</th><th>Statut</th><th>Mis à jour</th><th>Vues</th><th>Votes</th></tr></thead><tbody>{articles.map((article) => <tr key={article.id}><td className="cell-title"><b>{article.title}</b></td><td data-label="Statut"><span className={`status status-${article.status.toLowerCase()}`}>{statusLabels[article.status]}</span></td><td data-label="Mis à jour">{formatDate(article.updatedAt)}</td><td data-label="Vues">{formatNumber(article.views)}</td><td data-label="Votes">{formatNumber(article.voteCount)}</td></tr>)}</tbody></table> : <div className="empty-note">Tu n’as encore rien publié. Ton premier article peut commencer aujourd’hui.</div>}</section><div className="dash-halves"><section className="panel"><span className="eyebrow">Thème de la semaine</span><h2>{theme?.title ?? "Exprime-toi sur le sujet qui te tient à cœur"}</h2><Link className="arrow-link" href="/dashboard/new-article">Écrire maintenant <ArrowRight size={15} /></Link></section><section className="panel"><span className="eyebrow">Ma progression</span><h2>{formatNumber(user.profile?.totalPoints ?? 0)} points · {badges} badge{badges !== 1 ? "s" : ""}</h2><p className="helper-text">{participations} challenge{participations !== 1 ? "s" : ""} terminé{participations !== 1 ? "s" : ""} · {published} article{published !== 1 ? "s" : ""} publié{published !== 1 ? "s" : ""}.</p></section></div></>;
+}

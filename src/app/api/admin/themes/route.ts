@@ -1,0 +1,21 @@
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { getCurrentUser } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { isStaff } from "@/lib/permissions";
+
+const schema = z.object({ title: z.string().trim().min(10).max(180), description: z.string().trim().min(20).max(2000), startsAt: z.coerce.date(), endsAt: z.coerce.date() }).refine((data) => data.endsAt > data.startsAt, { message: "La date de fin doit suivre la date de début." });
+const slugify = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+export async function POST(request: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "Connexion requise." }, { status: 401 });
+  if (!isStaff(user.role)) return NextResponse.json({ error: "Permission insuffisante." }, { status: 403 });
+  const parsed = schema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Vérifie les informations du thème." }, { status: 400 });
+  const { title, description, startsAt, endsAt } = parsed.data;
+  const overlap = await db.weeklyTheme.findFirst({ where: { startsAt: { lt: endsAt }, endsAt: { gt: startsAt } } });
+  if (overlap) return NextResponse.json({ error: `Ces dates chevauchent le thème « ${overlap.title} ».` }, { status: 409 });
+  const theme = await db.weeklyTheme.create({ data: { title, description, startsAt, endsAt, slug: `${slugify(title)}-${crypto.randomUUID().slice(0, 6)}` } });
+  return NextResponse.json({ data: theme }, { status: 201 });
+}
