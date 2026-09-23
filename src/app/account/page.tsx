@@ -36,7 +36,7 @@ export default async function AccountPage() {
     </div>
 
     <section className="panel">
-      <div className="section-head compact"><h2>Mes derniers commentaires</h2><Link className="arrow-link" href="/articles">Explorer les articles <ArrowRight size={15} /></Link></div>
+      <div className="section-head compact"><h2>Mes derniers commentaires</h2><Link className="arrow-link" href="/account/comments">Tout voir <ArrowRight size={15} /></Link></div>
       {comments.length ? <div className="account-comments">{comments.map((comment) => {
         const slug = comment.article?.slug ?? comment.articleSlug;
         return <article key={comment.id}><p>{comment.content}</p><small>{formatDate(comment.createdAt)}{comment.article?.title ? ` · ${comment.article.title}` : ""}</small>{slug && <Link href={`/articles/${slug}`}>Voir la discussion</Link>}</article>;
