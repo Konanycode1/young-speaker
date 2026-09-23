@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { Comments } from "@/components/comments";
+import { ShareButton } from "@/components/share-button";
 import { VoteButton } from "@/components/vote-button";
 import { db } from "@/lib/db";
 import { avatarColor, initials } from "@/lib/utils";
@@ -25,5 +26,5 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   const date = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" }).format(article.publishedAt ?? article.createdAt);
   const readTime = Math.max(2, Math.ceil(article.content.split(/\s+/).length / 220));
   const content = article.content.split(/\n\n+/);
-  return <article className="detail-wrap"><header className="detail-head"><span className="tag">{article.category.name}</span><h1>{article.title}</h1><p className="dek">{article.excerpt}</p><div className="detail-author"><Avatar initials={authorInitials} color={avatarColor(article.author.profile?.username ?? article.authorId)} size="sm" /><span className="author"><span><b>{author}</b><small>{date} · {readTime} min de lecture</small></span></span></div></header><div className={`detail-cover art-${slug.split("-")[0]}`}><span>{authorInitials[0]}</span></div>{article.sensitiveWarning && <div className="sensitive">⚠️ <b>Prends soin de toi.</b> {article.sensitiveWarning} Ce contenu ne remplace pas l’avis d’un professionnel.</div>}<div className="article-content">{content.map((paragraph, index) => <p key={`${index}-${paragraph.slice(0, 20)}`}>{paragraph}</p>)}</div><div className="vote-row"><VoteButton initial={article.voteCount} articleId={article.id} /></div><Comments articleSlug={article.slug} /></article>;
+  return <article className="detail-wrap"><header className="detail-head"><span className="tag">{article.category.name}</span><h1>{article.title}</h1><p className="dek">{article.excerpt}</p><div className="detail-author"><Avatar initials={authorInitials} color={avatarColor(article.author.profile?.username ?? article.authorId)} size="sm" /><span className="author"><span><b>{author}</b><small>{date} · {readTime} min de lecture</small></span></span></div></header><div className={`detail-cover art-${slug.split("-")[0]}`}><span>{authorInitials[0]}</span></div>{article.sensitiveWarning && <div className="sensitive">⚠️ <b>Prends soin de toi.</b> {article.sensitiveWarning} Ce contenu ne remplace pas l’avis d’un professionnel.</div>}<div className="article-content">{content.map((paragraph, index) => <p key={`${index}-${paragraph.slice(0, 20)}`}>{paragraph}</p>)}</div><div className="vote-row"><VoteButton initial={article.voteCount} articleId={article.id} /><ShareButton slug={article.slug} title={article.title} /></div><Comments articleSlug={article.slug} /></article>;
 }
