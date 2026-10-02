@@ -16,6 +16,9 @@ export const isStaff = (role?: Role | null) => Boolean(role) && RANK[role as Rol
 // Seul le super administrateur ajoute ou retire des modérateurs.
 export const canManageModerators = (role?: Role | null) => role === "SUPER_ADMIN";
 
+// Les réglages globaux (ex. publication automatique) restent réservés aux administrateurs.
+export const canManageSettings = (role?: Role | null) => role === "SUPER_ADMIN" || role === "ADMIN";
+
 // On ne peut bloquer qu'un compte de rang strictement inférieur : un modérateur bloque
 // les speakers et visiteurs, un admin aussi les modérateurs, le super admin n'est jamais bloqué.
 export const canBlock = (actor: Role, target: Role) => isStaff(actor) && RANK[actor] > RANK[target];

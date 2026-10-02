@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { isStaff } from "@/lib/permissions";
 
-const schema = z.object({ title: z.string().trim().min(5).max(140), description: z.string().trim().min(20).max(1000), objective: z.string().trim().min(10).max(240), instructions: z.string().trim().min(10).max(3000), difficulty: z.enum(["Facile", "Intermédiaire", "Avancé"]), reward: z.string().trim().max(120).optional(), points: z.coerce.number().int().min(0).max(1000), startsAt: z.coerce.date(), endsAt: z.coerce.date(), status: z.enum(["DRAFT", "ACTIVE"]) }).refine((data) => data.endsAt > data.startsAt, { message: "La date de fin doit suivre la date de début." });
+const schema = z.object({ title: z.string().trim().min(5).max(140), description: z.string().trim().min(20).max(1000), objective: z.string().trim().min(10).max(240), instructions: z.string().trim().min(10).max(3000), difficulty: z.enum(["Facile", "Intermédiaire", "Avancé"]), reward: z.string().trim().max(120).optional(), points: z.coerce.number().int().min(0).max(1000), sensitive: z.coerce.boolean().default(false), startsAt: z.coerce.date(), endsAt: z.coerce.date(), status: z.enum(["DRAFT", "ACTIVE"]) }).refine((data) => data.endsAt > data.startsAt, { message: "La date de fin doit suivre la date de début." });
 const slugify = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
 export async function POST(request: NextRequest) {

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { LANGUAGE_ERROR, violatesLanguageRules } from "@/lib/moderation";
+import { getSiteSettings } from "@/lib/settings";
 
 const schema = z.object({
   title: z.string().trim().min(10).max(140),
@@ -10,6 +11,7 @@ const schema = z.object({
   content: z.string().trim().min(100).max(50_000),
   category: z.string().trim().min(2).max(80),
   weeklyThemeId: z.string().optional(),
+  campaignId: z.string().optional(),
   intent: z.enum(["draft", "submit"]),
 });
 
@@ -42,7 +44,14 @@ export async function POST(request: NextRequest) {
   const categorySlug = toSlug(data.category);
   const category = await db.category.upsert({ where: { slug: categorySlug }, update: {}, create: { name: data.category, slug: categorySlug } });
   const slug = `${toSlug(data.title)}-${crypto.randomUUID().slice(0, 6)}`;
-  const article = await db.article.create({ data: { authorId: user.id, categoryId: category.id, weeklyThemeId: data.weeklyThemeId || null, title: data.title, slug, excerpt: data.excerpt, content: data.content, status: data.intent === "submit" ? "PENDING_REVIEW" : "DRAFT" } });
+  let status: "DRAFT" | "PENDING_REVIEW" | "APPROVED" = "DRAFT";
+  let publishedAt: Date | null = null;
+  if (data.intent === "submit") {
+    const settings = await getSiteSettings();
+    status = settings.autoPublishArticles ? "APPROVED" : "PENDING_REVIEW";
+    publishedAt = settings.autoPublishArticles ? new Date() : null;
+  }
+  const article = await db.article.create({ data: { authorId: user.id, categoryId: category.id, weeklyThemeId: data.weeklyThemeId || null, campaignId: data.campaignId || null, title: data.title, slug, excerpt: data.excerpt, content: data.content, status, publishedAt } });
   if (data.intent === "submit") {
     const badge = await db.badge.findUnique({ where: { slug: "premier-article" } });
     if (badge) await db.userBadge.upsert({ where: { userId_badgeId: { userId: user.id, badgeId: badge.id } }, update: {}, create: { userId: user.id, badgeId: badge.id } });

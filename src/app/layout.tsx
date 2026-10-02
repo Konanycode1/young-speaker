@@ -1,7 +1,10 @@
 import type { Metadata, Viewport } from "next";
+import { CampaignBanner } from "@/components/campaign-banner";
+import { CampaignProvider } from "@/components/campaign-context";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { InstallPrompt } from "@/components/install-prompt";
+import { getActiveCampaign } from "@/lib/campaign";
 import { getCurrentUser } from "@/lib/auth";
 import "./globals.css";
 
@@ -18,10 +21,16 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const account = await getCurrentUser();
+  const [account, campaign] = await Promise.all([getCurrentUser(), getActiveCampaign()]);
   const initialUser = account ? {
     role: account.role,
     profile: account.profile ? { displayName: account.profile.displayName, username: account.profile.username } : null,
   } : null;
-  return <html lang="fr" suppressHydrationWarning data-scroll-behavior="smooth"><head><script dangerouslySetInnerHTML={{__html: `try{document.documentElement.dataset.theme=localStorage.getItem('theme')||'light'}catch(e){}`} } /></head><body><Header initialUser={initialUser}/><main>{children}</main><Footer/><InstallPrompt/></body></html>;
+  return <html lang="fr" suppressHydrationWarning data-scroll-behavior="smooth"><head><script dangerouslySetInnerHTML={{__html: `try{document.documentElement.dataset.theme=localStorage.getItem('theme')||'light'}catch(e){}`} } /></head><body>
+    <CampaignBanner campaign={campaign} />
+    <Header initialUser={initialUser}/>
+    <CampaignProvider campaign={campaign ? { name: campaign.name, color: campaign.color } : null}><main>{children}</main></CampaignProvider>
+    <Footer/>
+    <InstallPrompt/>
+  </body></html>;
 }

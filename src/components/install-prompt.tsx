@@ -60,8 +60,8 @@ export function InstallPrompt() {
 
   return <div className="install-banner" role="dialog" aria-label="Installer Young Speaker">
     {platform === "ios"
-      ? <p><Share size={16} /> Installe Young Speaker : appuie sur <b>Partager</b> puis <b>« Sur l’écran d’accueil »</b>.</p>
-      : <p><Download size={16} /> Installe Young Speaker sur ton appareil pour un accès plus rapide.</p>}
+      ? <p><Share size={16} /><span>Installe Young Speaker : appuie sur <b>Partager</b> puis <b>« Sur l’écran d’accueil »</b>.</span></p>
+      : <p><Download size={16} /><span>Installe Young Speaker sur ton appareil pour un accès plus rapide.</span></p>}
     <div className="install-banner-actions">
       {platform === "chrome" && <button className="button small violet" onClick={install}>Installer</button>}
       <button className="icon-button" onClick={dismiss} aria-label="Fermer"><X size={16} /></button>

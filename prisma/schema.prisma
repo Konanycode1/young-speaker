@@ -74,6 +74,9 @@ model User {
   reports        Report[]
   notifications  Notification[]
   sessions       Session[]
+  moodCheckIns   MoodCheckIn[]
+  experienceReactions ExperienceReaction[]
+  engagementReminders EngagementReminderLog[]
   createdAt      DateTime                 @default(now())
   updatedAt      DateTime                 @updatedAt
   deletedAt      DateTime?
@@ -101,6 +104,9 @@ model Profile {
   userId      String   @unique
   username    String   @unique
   displayName String
+  // Nom complet, facultatif : jamais affiché publiquement, utilisé uniquement
+  // pour personnaliser les documents privés (ex. certificat de challenge).
+  fullName    String?
   avatarUrl   String?
   ageRange    String?
   city        String?
@@ -121,6 +127,7 @@ model Article {
   authorId         String
   categoryId       String
   weeklyThemeId    String?
+  campaignId       String?
   title            String
   slug             String        @unique
   excerpt          String        @db.VarChar(300)
@@ -135,6 +142,7 @@ model Article {
   author           User          @relation(fields: [authorId], references: [id])
   category         Category      @relation(fields: [categoryId], references: [id])
   weeklyTheme      WeeklyTheme?  @relation(fields: [weeklyThemeId], references: [id])
+  campaign         AwarenessCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   votes            Vote[]
   comments         Comment[]
   reports          Report[]
@@ -146,6 +154,7 @@ model Article {
   @@index([status, publishedAt])
   @@index([categoryId, status])
   @@index([weeklyThemeId, voteCount])
+  @@index([campaignId])
   @@index([authorId])
 }
 
@@ -167,7 +176,10 @@ model WeeklyTheme {
   coverImage  String?
   startsAt    DateTime
   endsAt      DateTime
+  // Horodatage de l'email annonçant la disponibilité du thème (envoyé une seule fois).
+  announcedAt DateTime?
   articles    Article[]
+  reminders   EngagementReminderLog[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -223,6 +235,11 @@ model Challenge {
   reward         String?
   points         Int                      @default(0)
   status         ChallengeStatus          @default(DRAFT)
+  // Sujet sensible (bien-être, violences, santé sexuelle...) : exclu des classements
+  // publics pour ne pas transformer le sujet en compétition de popularité.
+  sensitive      Boolean                  @default(false)
+  // Horodatage de l'email annonçant la disponibilité du challenge (envoyé une seule fois).
+  announcedAt    DateTime?
   startsAt       DateTime
   endsAt         DateTime
   participations ChallengeParticipation[]
@@ -245,9 +262,25 @@ model ChallengeParticipation {
   completedAt DateTime?
   user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   challenge   Challenge           @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  reactions   ExperienceReaction[]
 
   @@unique([userId, challengeId])
   @@index([challengeId, status])
+}
+
+// Réaction de soutien sur un témoignage public. Volontairement un seul type
+// (pas de mécanique de popularité à plusieurs émojis) et masquée pour les
+// challenges sensibles : voir le commentaire sur Challenge.sensitive.
+model ExperienceReaction {
+  id              String                 @id @default(cuid())
+  participationId String
+  userId          String
+  participation   ChallengeParticipation @relation(fields: [participationId], references: [id], onDelete: Cascade)
+  user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime               @default(now())
+
+  @@unique([participationId, userId])
+  @@index([participationId])
 }
 
 model Badge {
@@ -303,4 +336,70 @@ model Notification {
   createdAt DateTime  @default(now())
 
   @@index([userId, readAt, createdAt])
+}
+
+// Ligne unique (id fixe) portant les réglages globaux de la plateforme.
+model SiteSettings {
+  id                  String   @id @default("singleton")
+  autoPublishArticles Boolean  @default(true)
+  updatedAt           DateTime @updatedAt
+}
+
+enum Mood {
+  VERY_GOOD
+  GOOD
+  NEUTRAL
+  BAD
+  VERY_BAD
+}
+
+// Auto-évaluation personnelle « Comment vas-tu ? » : strictement liée à son auteur,
+// jamais publique. Un modérateur/admin peut la consulter ponctuellement si besoin
+// (ex. signalement, inquiétude), jamais via un flux global de tous les utilisateurs.
+model MoodCheckIn {
+  id         String   @id @default(cuid())
+  userId     String
+  mood       Mood
+  influences String[]
+  note       String?  @db.VarChar(500)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// Empêche de renvoyer deux fois le même rappel (1, 2 ou 3) à la même personne
+// pour le même thème, même si la tâche planifiée tourne plusieurs fois le même jour.
+model EngagementReminderLog {
+  id             String      @id @default(cuid())
+  userId         String
+  themeId        String
+  reminderNumber Int
+  sentAt         DateTime    @default(now())
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme          WeeklyTheme @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, themeId, reminderNumber])
+}
+
+// Campagne de sensibilisation réutilisable (Octobre Rose, puis d'autres mois
+// thématiques à venir) : ruban sur les articles + bandeau de message, activable
+// et désactivable sans rien supprimer, pour pouvoir la réutiliser plus tard.
+model AwarenessCampaign {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  message     String    @db.Text
+  color       String
+  ctaLabel    String?
+  ctaUrl      String?
+  // Sujet d'écriture optionnel : affiché comme un « thème spécial » à côté du
+  // thème de la semaine habituel, sans le remplacer. Vide = pas de thème spécial.
+  themePrompt String?   @db.Text
+  isActive    Boolean   @default(false)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  articles    Article[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }

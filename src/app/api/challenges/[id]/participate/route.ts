@@ -48,7 +48,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     });
     await transaction.profile.update({ where: { userId: user.id }, data: { totalPoints: { increment: challenge.points } } });
     if (badge) await transaction.userBadge.upsert({ where: { userId_badgeId: { userId: user.id, badgeId: badge.id } }, update: {}, create: { userId: user.id, badgeId: badge.id } });
-    await transaction.notification.create({ data: { userId: user.id, type: "CHALLENGE_COMPLETED", title: "Challenge terminé 🎉", body: `Bravo ! Tu gagnes ${challenge.points} points.`, href: "/dashboard/badges" } });
+    await transaction.notification.create({ data: { userId: user.id, type: "CHALLENGE_COMPLETED", title: "Challenge terminé", body: `Bravo ! Tu gagnes ${challenge.points} points.`, href: "/dashboard/badges" } });
     return completed;
   });
   return NextResponse.json({ data: participation });

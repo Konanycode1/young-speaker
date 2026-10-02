@@ -3,11 +3,11 @@ import { PrismaClient } from "@prisma/client";
 const db = new PrismaClient();
 const categories = ["Santé mentale", "Relations", "Éducation", "Société", "Développement personnel", "Autres"];
 const badges = [
-  ["Young Speaker", "young-speaker", "🎤", "Bienvenue dans la communauté des voix qui comptent."],
-  ["Premier article", "premier-article", "✍️", "Ton premier texte a été soumis à la modération."],
-  ["Speaker actif", "speaker-actif", "🔥", "Tu publies régulièrement et fais vivre la communauté."],
-  ["Voice of Youth", "voice-of-youth", "💬", "Tes mots inspirent et ouvrent le dialogue."],
-  ["Challenge Master", "challenge-master", "🏅", "Tu as mené un challenge jusqu’au bout."],
+  ["Young Speaker", "young-speaker", "Mic", "Bienvenue dans la communauté des voix qui comptent."],
+  ["Premier article", "premier-article", "PenLine", "Ton premier texte a été soumis à la modération."],
+  ["Speaker actif", "speaker-actif", "Flame", "Tu publies régulièrement et fais vivre la communauté."],
+  ["Voice of Youth", "voice-of-youth", "MessageCircle", "Tes mots inspirent et ouvrent le dialogue."],
+  ["Challenge Master", "challenge-master", "Award", "Tu as mené un challenge jusqu’au bout."],
 ];
 const challenges = [
   ["7 jours sans jugement", "7-jours-sans-jugement", "Pendant une semaine, remplace chaque jugement par une question bienveillante.", "Facile"],

@@ -63,7 +63,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
           <td data-label="Inscrit le">{formatDate(user.createdAt)}</td>
           <td data-label="Contenus">{formatNumber(user._count.articles)} article{user._count.articles !== 1 ? "s" : ""} · {formatNumber(user._count.comments)} commentaire{user._count.comments !== 1 ? "s" : ""}</td>
           <td data-label="Statut"><span className={user.blockedAt ? "status status-blocked" : "status"}>{user.blockedAt ? "Bloqué" : "Actif"}</span></td>
-          <td className="cell-action">{user.id === actor.id ? <small className="share-note">Ton compte</small> : canBlock(actor.role, user.role) ? <UserBlockButton userId={user.id} name={name} blocked={Boolean(user.blockedAt)} /> : <small className="share-note">Non modifiable</small>}</td>
+          <td className="cell-action article-row-actions"><Link className="button small outline" href={`/admin/users/${user.id}/mood`}>Bien-être</Link>{user.id === actor.id ? <small className="share-note">Ton compte</small> : canBlock(actor.role, user.role) ? <UserBlockButton userId={user.id} name={name} blocked={Boolean(user.blockedAt)} /> : <small className="share-note">Non modifiable</small>}</td>
         </tr>;
       })}</tbody></table> : <div className="empty-note">Aucun utilisateur ne correspond à cette recherche.</div>}
     </div>

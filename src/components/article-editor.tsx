@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+const CATEGORIES = ["Santé mentale", "Bien-être psychologique", "Santé sexuelle et reproductive", "Relations", "Famille", "Éducation", "VBG", "Réseaux sociaux", "Société", "Développement personnel", "Jeunesse", "Autres"];
+
 type ExistingArticle = {
   id: string;
   title: string;
@@ -10,10 +12,11 @@ type ExistingArticle = {
   content: string;
   category: string;
   weeklyThemeId: string | null;
+  campaignId: string | null;
   status: "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "ARCHIVED";
 };
 
-export function ArticleEditor({ themeId, themeTitle, article }: { themeId?: string; themeTitle?: string; article?: ExistingArticle }) {
+export function ArticleEditor({ themeId, themeTitle, campaignId, campaignName, campaignPrompt, article }: { themeId?: string; themeTitle?: string; campaignId?: string; campaignName?: string; campaignPrompt?: string; article?: ExistingArticle }) {
   const router = useRouter();
   const [loading, setLoading] = useState<"draft" | "submit" | null>(null);
   const [error, setError] = useState("");
@@ -41,10 +44,11 @@ export function ArticleEditor({ themeId, themeTitle, article }: { themeId?: stri
 
   return <form className="panel article-editor" onSubmit={(event) => { event.preventDefault(); save(event.currentTarget, "draft"); }}>
     <div className="field"><label>Titre</label><input name="title" required minLength={10} maxLength={140} defaultValue={article?.title} placeholder="Un titre clair qui donne envie de t’écouter" /></div>
-    <div className="form-columns"><div className="field"><label>Catégorie</label><select name="category" required defaultValue={article?.category ?? ""}><option value="" disabled>Choisir une catégorie</option><option>Santé mentale</option><option>Relations</option><option>Éducation</option><option>Société</option><option>Développement personnel</option><option>Autres</option>{article?.category && !["Santé mentale", "Relations", "Éducation", "Société", "Développement personnel", "Autres"].includes(article.category) && <option>{article.category}</option>}</select></div><div className="field"><label>Thème de la semaine</label><select name="weeklyThemeId" defaultValue={article?.weeklyThemeId ?? themeId ?? ""}><option value="">Hors thème</option>{themeId && <option value={themeId}>{themeTitle}</option>}</select></div></div>
+    <div className="form-columns"><div className="field"><label>Catégorie</label><select name="category" required defaultValue={article?.category ?? ""}><option value="" disabled>Choisir une catégorie</option>{CATEGORIES.map((category) => <option key={category}>{category}</option>)}{article?.category && !CATEGORIES.includes(article.category) && <option>{article.category}</option>}</select></div><div className="field"><label>Thème de la semaine</label><select name="weeklyThemeId" defaultValue={article?.weeklyThemeId ?? themeId ?? ""}><option value="">Hors thème</option>{themeId && <option value={themeId}>{themeTitle}</option>}</select></div></div>
+    {campaignId && <div className="field"><label>Thème spécial</label><select name="campaignId" defaultValue={article?.campaignId ?? ""}><option value="">Hors thème spécial</option><option value={campaignId}>{campaignName}</option></select>{campaignPrompt && <small className="helper-text">{campaignPrompt}</small>}</div>}
     <div className="field"><label>Extrait</label><textarea name="excerpt" required rows={3} minLength={20} maxLength={240} defaultValue={article?.excerpt} placeholder="Résume ton idée en quelques phrases…" /></div>
     <div className="field"><label>Ton texte</label><textarea name="content" required rows={14} minLength={100} maxLength={50000} defaultValue={article?.content} placeholder="Ici, tu peux écrire librement. Prends ton temps…" /></div>
-    <div className="sensitive">🛡️ Ne partage jamais ton adresse, ton numéro ou d’autres informations personnelles. Chaque texte est relu pour la sécurité de tous.</div>
+    <div className="sensitive">Ne partage jamais ton adresse, ton numéro ou d’autres informations personnelles. Chaque texte est relu pour la sécurité de tous.</div>
     {error && <p className="form-error" role="alert">{error}</p>}
     <div className="editor-actions"><button className="button outline" disabled={Boolean(loading)}>{loading === "draft" ? "Enregistrement…" : "Enregistrer le brouillon"}</button><button className="button violet" type="button" disabled={Boolean(loading)} onClick={(event) => event.currentTarget.form && save(event.currentTarget.form, "submit")}>{loading === "submit" ? "Envoi…" : submitLabel}</button></div>
   </form>;

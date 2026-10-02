@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSession } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { welcomeEmail } from "@/lib/email-templates";
+import { sendEmail } from "@/lib/mailer";
 import { LANGUAGE_ERROR, violatesLanguageRules } from "@/lib/moderation";
 
 const schema = z.object({
@@ -28,6 +30,9 @@ export async function POST(request: NextRequest) {
       },
     });
     await createSession(user.id);
+    const isSpeaker = user.role === "YOUNG_SPEAKER";
+    const welcome = welcomeEmail({ displayName: username, isSpeaker });
+    void sendEmail({ to: user.email, subject: welcome.subject, html: welcome.html, text: welcome.text });
     return NextResponse.json({ data: { role: user.role } }, { status: 201 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {

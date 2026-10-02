@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "./logo";
 
 export type SessionUser = { role: "VISITOR" | "YOUNG_SPEAKER" | "MODERATOR" | "ADMIN" | "SUPER_ADMIN"; profile: { displayName: string; username: string } | null };
-const links = [["/articles", "Explorer"], ["/themes", "Thèmes"], ["/challenges", "Challenges"], ["/speakers", "Speakers"]];
+const links = [["/articles", "Explorer"], ["/themes", "Thèmes"], ["/challenges", "Challenges"], ["/speakers", "Speakers"], ["/comment-vas-tu", "Comment vas-tu ?"]];
 
 export function Header({ initialUser = null }: { initialUser?: SessionUser | null }) {
   const router = useRouter();

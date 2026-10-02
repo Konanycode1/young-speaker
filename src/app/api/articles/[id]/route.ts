@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { LANGUAGE_ERROR, violatesLanguageRules } from "@/lib/moderation";
+import { getSiteSettings } from "@/lib/settings";
 
 const schema = z.object({
   title: z.string().trim().min(10).max(140),
@@ -10,6 +11,7 @@ const schema = z.object({
   content: z.string().trim().min(100).max(50_000),
   category: z.string().trim().min(2).max(80),
   weeklyThemeId: z.string().optional(),
+  campaignId: z.string().optional(),
   intent: z.enum(["draft", "submit"]),
 });
 
@@ -22,7 +24,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const existing = await db.article.findUnique({ where: { id } });
   if (!existing || existing.deletedAt) return NextResponse.json({ error: "Article introuvable." }, { status: 404 });
   if (existing.authorId !== user.id) return NextResponse.json({ error: "Tu ne peux modifier que tes propres articles." }, { status: 403 });
-  if (existing.status === "ARCHIVED") return NextResponse.json({ error: "Un article archivé ne peut plus être modifié." }, { status: 409 });
 
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Vérifie le titre, l’extrait et le contenu.", issues: parsed.error.issues }, { status: 400 });
@@ -32,19 +33,27 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const categorySlug = toSlug(data.category);
   const category = await db.category.upsert({ where: { slug: categorySlug }, update: {}, create: { name: data.category, slug: categorySlug } });
 
-  // Republier un article déjà approuvé exige une nouvelle relecture avant sa remise en ligne.
-  const nextStatus = data.intent === "submit" ? "PENDING_REVIEW" : "DRAFT";
+  // Republier un article déjà approuvé exige une nouvelle relecture avant sa remise en ligne,
+  // sauf si la publication automatique est active.
+  let nextStatus: "DRAFT" | "PENDING_REVIEW" | "APPROVED" = "DRAFT";
+  let publishedAt: Date | null = null;
+  if (data.intent === "submit") {
+    const settings = await getSiteSettings();
+    nextStatus = settings.autoPublishArticles ? "APPROVED" : "PENDING_REVIEW";
+    publishedAt = settings.autoPublishArticles ? new Date() : null;
+  }
   const article = await db.article.update({
     where: { id },
     data: {
       categoryId: category.id,
       weeklyThemeId: data.weeklyThemeId || null,
+      campaignId: data.campaignId || null,
       title: data.title,
       excerpt: data.excerpt,
       content: data.content,
       status: nextStatus,
       rejectionReason: null,
-      publishedAt: null,
+      publishedAt,
     },
   });
   return NextResponse.json({ data: article });

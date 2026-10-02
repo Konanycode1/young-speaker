@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "./auth";
 
-export const statusLabels = { DRAFT: "Brouillon", PENDING_REVIEW: "En attente", APPROVED: "Publié", REJECTED: "Refusé", ARCHIVED: "Archivé" } as const;
+export const statusLabels = { DRAFT: "Brouillon", PENDING_REVIEW: "En attente", APPROVED: "Publié", REJECTED: "Refusé", ARCHIVED: "Dépublié" } as const;
 
 export async function requireSpeaker() {
   const user = await getCurrentUser();

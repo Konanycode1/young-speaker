@@ -26,7 +26,7 @@ export default async function AccountPage() {
 
   return <section className="container section account-space">
     <div className="dash-head">
-      <div><span className="eyebrow">Bonjour {user.profile?.displayName} 👋</span><h1>Mon espace</h1><p>Retrouve ton activité et gère ton compte.</p></div>
+      <div><span className="eyebrow">Bonjour {user.profile?.displayName}</span><h1>Mon espace</h1><p>Retrouve ton activité et gère ton compte.</p></div>
       <Link className="button violet" href="/become-speaker">Devenir Speaker <ArrowRight size={17} /></Link>
     </div>
 
