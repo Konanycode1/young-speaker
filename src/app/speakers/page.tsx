@@ -1,34 +1,25 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Avatar } from "@/components/avatar";
-import { db } from "@/lib/db";
+import { SpeakerPodium } from "@/components/speaker-podium";
 import { formatNumber } from "@/lib/dashboard";
-import { avatarColor, initials } from "@/lib/utils";
+import { getSpeakerStats } from "@/lib/speaker-stats";
 
 export const metadata: Metadata = { title: "Young Speakers" };
 
 export default async function SpeakersPage() {
-  const users = await db.user.findMany({
-    where: { role: "YOUNG_SPEAKER", deletedAt: null, profile: { isNot: null } },
-    include: {
-      profile: true,
-      articles: { where: { status: "APPROVED", deletedAt: null }, select: { voteCount: true } },
-      badges: { include: { badge: true }, orderBy: { awardedAt: "desc" }, take: 1 },
-    },
-  });
-  const speakers = users.map((user) => {
-    const profile = user.profile!;
-    return {
-      name: profile.displayName,
-      username: profile.username,
-      initials: initials(profile.displayName),
-      color: avatarColor(profile.username),
-      bio: profile.bio || "Une nouvelle voix dans la communauté Young Speaker.",
-      articles: user.articles.length,
-      votes: user.articles.reduce((total, article) => total + article.voteCount, 0),
-      badge: user.badges[0]?.badge.name ?? "Young Speaker",
-    };
-  }).sort((first, second) => second.votes - first.votes || second.articles - first.articles || first.name.localeCompare(second.name, "fr"));
+  const speakers = await getSpeakerStats();
+  const weeklyRanking = [...speakers].sort((first, second) => second.weeklyVotes - first.weeklyVotes || second.votes - first.votes).slice(0, 3).filter((speaker) => speaker.weeklyVotes > 0);
 
-  return <><section className="page-hero container"><span className="eyebrow">La communauté</span><h1>Celles et ceux qui osent</h1><p>Découvre les profils, les sujets et les histoires de nos Young Speakers.</p></section><section className="container section" style={{ paddingTop: 0 }}>{speakers.length ? <div className="speakers-grid">{speakers.map((speaker) => <Link className="speaker-card" href={`/speakers/${speaker.username}`} key={speaker.username}><Avatar initials={speaker.initials} color={speaker.color}/><h3>{speaker.name}</h3><span className="handle">@{speaker.username}</span><p>{speaker.bio}</p><span className="badge">✦ {speaker.badge}</span><div className="speaker-stats"><span><b>{speaker.articles}</b><small>article{speaker.articles !== 1 ? "s" : ""}</small></span><span><b>{formatNumber(speaker.votes)}</b><small>votes</small></span></div></Link>)}</div> : <div className="empty-note">Aucun Young Speaker inscrit pour le moment.</div>}</section></>;
+  const podiumUsernames = new Set(weeklyRanking.map((speaker) => speaker.username));
+  const rest = speakers.filter((speaker) => !podiumUsernames.has(speaker.username));
+
+  return <>
+    <section className="page-hero container"><span className="eyebrow">La communauté</span><h1>Celles et ceux qui osent</h1><p>Découvre les profils, les sujets et les histoires de nos Young Speakers.</p></section>
+    {weeklyRanking.length > 0 && <section className="container section podium-section" style={{ paddingTop: 0 }}>
+      <div className="podium-head"><span className="eyebrow">Top de la semaine</span><h2>Leurs mots ont <em className="accent">touché</em> la communauté.</h2><p>Les votes reçus ces sept derniers jours.</p></div>
+      <SpeakerPodium ranked={weeklyRanking} />
+    </section>}
+    <section className="container section" style={{ paddingTop: 0 }}>{rest.length ? <div className="speaker-rows">{rest.map((speaker) => <Link className="speaker-row" href={`/speakers/${speaker.username}`} key={speaker.username}><Avatar initials={speaker.initials} color={speaker.color} size="md"/><span className="speaker-row-info"><b>{speaker.name}</b><small>{speaker.articles} article{speaker.articles !== 1 ? "s" : ""} · {formatNumber(speaker.votes)} vote{speaker.votes !== 1 ? "s" : ""}</small></span>{speaker.badge && <span className="speaker-row-badge">{speaker.badge}</span>}</Link>)}</div> : speakers.length ? null : <div className="empty-note">Aucun Young Speaker inscrit pour le moment.</div>}</section>
+  </>;
 }

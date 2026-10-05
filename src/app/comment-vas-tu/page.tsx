@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { MoodCheckInForm } from "@/components/mood-checkin-form";
+import { MoodPrompt } from "@/components/mood-prompt";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { formatDate } from "@/lib/dashboard";
@@ -15,8 +16,10 @@ export default async function MoodCheckInPage() {
   const history = await db.moodCheckIn.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 7 });
 
   return <>
-    <section className="page-hero container"><span className="eyebrow">Un espace pour toi</span><h1>Comment vas-tu ?</h1><p>Prends trente secondes pour toi. Ce que tu écris ici reste privé — visible seulement par toi.</p></section>
+    <section className="page-hero container mood-hero"><span className="eyebrow">Comment vas-tu ?</span><h1>Prends un instant <em className="accent">pour toi.</em></h1><p>Comment te sens-tu aujourd’hui ?</p></section>
     <section className="container section" style={{ paddingTop: 0, maxWidth: 700, margin: "0 auto" }}>
+      <MoodPrompt />
+      <h2 className="mood-section-title">Enregistrer ton humeur</h2>
       <MoodCheckInForm />
       {history.length > 0 && <section className="panel">
         <h2>Tes derniers points</h2>

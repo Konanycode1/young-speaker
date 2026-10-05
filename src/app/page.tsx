@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { ArrowRight, ArrowUp, Medal, Ribbon } from "lucide-react";
-import { ArticleCard } from "@/components/article-card";
+import { ExplorerCard } from "@/components/article-explorer";
 import { Avatar } from "@/components/avatar";
 import { getActiveCampaign } from "@/lib/campaign";
+import { getSpeakerStats } from "@/lib/speaker-stats";
 import { db } from "@/lib/db";
 import { formatNumber } from "@/lib/dashboard";
 import { avatarColor, initials } from "@/lib/utils";
@@ -13,24 +14,14 @@ export default async function Home() {
   const now = new Date();
   const weekStart = new Date(now);
   weekStart.setDate(weekStart.getDate() - 7);
-  const [databaseArticles, databaseSpeakers, currentTheme, currentChallenge, topWeeklyVotes, activeCampaign] = await Promise.all([
+  const [databaseArticles, speakers, currentTheme, currentChallenge, topWeeklyVotes, activeCampaign] = await Promise.all([
     db.article.findMany({
       where: { status: "APPROVED", deletedAt: null },
-      include: { category: true, author: { include: { profile: true } } },
+      include: { category: true, campaign: true, author: { include: { profile: true } } },
       orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
       take: 3,
     }),
-    db.user.findMany({
-      where: { role: "YOUNG_SPEAKER", deletedAt: null, profile: { isNot: null } },
-      include: {
-        profile: true,
-        articles: {
-          where: { status: "APPROVED", deletedAt: null },
-          select: { voteCount: true, votes: { where: { createdAt: { gte: weekStart } }, select: { id: true } } },
-        },
-        badges: { include: { badge: true }, orderBy: { awardedAt: "desc" }, take: 1 },
-      },
-    }),
+    getSpeakerStats(),
     db.weeklyTheme.findFirst({
       where: { startsAt: { lte: now }, endsAt: { gte: now } },
       include: { articles: { where: { status: "APPROVED", deletedAt: null }, select: { voteCount: true } } },
@@ -72,32 +63,22 @@ export default async function Home() {
       title: article.title,
       excerpt: article.excerpt,
       category: article.category.name,
+      campaign: article.campaign?.name ?? null,
       author,
       initials: initials(author),
       color: avatarColor(article.author.profile?.username ?? article.authorId),
       votes: article.voteCount,
       views: article.views,
+      comments: article.commentCount,
       readTime: Math.max(2, Math.ceil(article.content.split(/\s+/).length / 220)),
       date: new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric" }).format(article.publishedAt ?? article.createdAt),
       sensitive: article.sensitiveWarning ?? undefined,
       content: article.content.split(/\n\n+/),
     };
   });
-  const speakers = databaseSpeakers.map((speaker) => {
-    const profile = speaker.profile!;
-    return {
-      name: profile.displayName,
-      username: profile.username,
-      initials: initials(profile.displayName),
-      color: avatarColor(profile.username),
-      bio: profile.bio || "Une nouvelle voix dans la communauté Young Speaker.",
-      articles: speaker.articles.length,
-      votes: speaker.articles.reduce((total, article) => total + article.voteCount, 0),
-      weeklyVotes: speaker.articles.reduce((total, article) => total + article.votes.length, 0),
-      badge: speaker.badges[0]?.badge.name ?? "Young Speaker",
-    };
-  }).sort((first, second) => second.votes - first.votes || second.articles - first.articles);
-  const featuredSpeakers = speakers.slice(0, 4);
+  const byWeeklyVotes = [...speakers].sort((first, second) => second.weeklyVotes - first.weeklyVotes || second.votes - first.votes);
+  const featuredSpeaker = byWeeklyVotes[0];
+  const newVoices = byWeeklyVotes.slice(1, 4);
   const weeklyRanking = [...speakers].sort((first, second) => second.weeklyVotes - first.weeklyVotes || second.votes - first.votes).slice(0, 3);
   const themeVotes = currentTheme?.articles.reduce((total, article) => total + article.voteCount, 0) ?? 0;
   const challengeProgress = currentChallenge
@@ -109,15 +90,26 @@ export default async function Home() {
       <div className="hero-visual" aria-hidden="true"><div className="blob"/><div className="portrait"/><div className="floating-note one">Mon histoire peut aider.</div><div className="floating-note two"><i>✦</i> Ici, on m’écoute vraiment.</div></div>
     </section>
 
-    {specialTheme && <section className="section section-soft"><div className="container"><div className="theme-card special" style={{ "--campaign-color": specialTheme.color } as React.CSSProperties}><div><span className="eyebrow"><Ribbon size={14} style={{ verticalAlign: "-2px" }} /> Thème spécial · {specialTheme.name}</span><h2>« {specialTheme.themePrompt} »</h2><div className="theme-stats"><span><b>{specialTheme.participations}</b><small>participation{specialTheme.participations !== 1 ? "s" : ""}</small></span></div></div><div className="theme-cta"><Link className="button light" href="/dashboard/new-article">Écrire sur ce thème <ArrowRight size={17}/></Link><small>Tu peux écrire sous pseudonyme</small></div></div></div></section>}
+    {specialTheme && <section className="section section-soft"><div className="container"><div className="theme-card special" style={{ "--campaign-color": specialTheme.color } as React.CSSProperties}><div><span className="eyebrow"><Ribbon size={14} style={{ verticalAlign: "-2px" }} /> Thème spécial · {specialTheme.name}</span><h2>« {specialTheme.themePrompt} »</h2></div><div className="theme-cta"><Link className="button light" href="/dashboard/new-article">Écrire sur ce thème <ArrowRight size={17}/></Link><small>Tu peux écrire sous pseudonyme</small></div></div></div></section>}
+
+    {spotlight && <section className="section" style={{ paddingTop: 0, paddingBottom: "3rem" }}><div className="container"><Link href={`/articles/${spotlight.slug}`} className="spotlight-card"><span className="eyebrow">Young Speaker de la semaine</span><h2>{spotlight.author} : « {spotlight.title} »</h2><span className="text-link">Lire son texte <ArrowRight size={16}/></span></Link></div></section>}
 
     <section className={`section ${specialTheme ? "" : "section-soft"}`} style={specialTheme ? { paddingTop: 0 } : undefined}><div className="container">{currentTheme ? <div className="theme-card"><div><span className="eyebrow">Thème de la semaine</span><h2>{currentTheme.title}</h2><p>{currentTheme.description}</p><div className="theme-stats"><span><b>{currentTheme.articles.length}</b><small>participation{currentTheme.articles.length !== 1 ? "s" : ""}</small></span><span><b>{formatNumber(themeVotes)}</b><small>votes</small></span><span><b>{formatDay(currentTheme.endsAt)}</b><small>date de fin</small></span></div></div><div className="theme-cta"><Link className="button light" href="/dashboard/new-article">Participer au thème <ArrowRight size={17}/></Link><small>Tu peux écrire sous pseudonyme</small></div></div> : <div className="empty-note">Le prochain thème de la semaine arrive bientôt.</div>}</div></section>
 
-    {spotlight && <section className="section" style={{ paddingBottom: 0 }}><div className="container"><Link href={`/articles/${spotlight.slug}`} className="spotlight-card"><span className="eyebrow">Young Speaker de la semaine</span><h2>Cette semaine, découvre la réflexion de {spotlight.author} sur :</h2><p className="spotlight-quote">« {spotlight.title} »</p><span className="text-link">Lire son texte <ArrowRight size={16}/></span></Link></div></section>}
 
-    <section className="section"><div className="container"><div className="section-head"><div><span className="eyebrow">À lire maintenant</span><h2>Des voix qui résonnent</h2></div><Link className="arrow-link" href="/articles">Voir tous les articles <ArrowRight size={17}/></Link></div>{articles.length ? <div className="article-grid">{articles.map((article, index) => <ArticleCard key={article.slug} article={article} featured={index === 0}/>)}</div> : <div className="empty-note">Aucun article publié pour le moment. Les premières voix arrivent bientôt.</div>}</div></section>
+    <section className="section"><div className="container"><div className="section-head"><div><span className="eyebrow">À lire maintenant</span><h2>Des voix qui résonnent</h2></div><Link className="arrow-link" href="/articles">Voir tous les articles <ArrowRight size={17}/></Link></div>{articles.length ? <div className="explorer-grid">{articles.map((article) => <ExplorerCard key={article.slug} article={article} />)}</div> : <div className="empty-note">Aucun article publié pour le moment. Les premières voix arrivent bientôt.</div>}</div></section>
 
-    <section className="section section-soft"><div className="container"><div className="section-head"><div><span className="eyebrow">La communauté</span><h2>Speakers à découvrir</h2><p>Des jeunes curieux, courageux et engagés qui racontent le monde avec leurs propres mots.</p></div><Link className="arrow-link" href="/speakers">Toute la communauté <ArrowRight size={17}/></Link></div>{featuredSpeakers.length ? <div className="speakers-grid">{featuredSpeakers.map((speaker) => <Link href={`/speakers/${speaker.username}`} className="speaker-card" key={speaker.username}><Avatar initials={speaker.initials} color={speaker.color}/><h3>{speaker.name}</h3><span className="handle">@{speaker.username}</span><p>{speaker.bio}</p><span className="badge">✦ {speaker.badge}</span><div className="speaker-stats"><span><b>{speaker.articles}</b><small>article{speaker.articles !== 1 ? "s" : ""}</small></span><span><b>{formatNumber(speaker.votes)}</b><small>votes</small></span></div></Link>)}</div> : <div className="empty-note">Aucun Young Speaker inscrit pour le moment.</div>}</div></section>
+    <section className="section section-soft"><div className="container discover">
+      <div className="discover-intro"><span className="eyebrow">La communauté</span><h2>Speakers à <em className="accent">découvrir</em></h2><p>Des jeunes curieux, courageux et engagés qui racontent le monde avec leurs propres mots.</p>
+        {featuredSpeaker && <div className="discover-feature"><span className="discover-kicker">À la une cette semaine</span><div className="discover-feature-who"><Avatar initials={featuredSpeaker.initials} color={featuredSpeaker.color} size="md"/><div><b>{featuredSpeaker.name}</b><small>@{featuredSpeaker.username}{featuredSpeaker.badge ? ` · ${featuredSpeaker.badge}` : ""}</small></div></div><p className="discover-quote">« {featuredSpeaker.bio} »</p><div className="discover-feature-foot"><span><b>{featuredSpeaker.articles}</b> article{featuredSpeaker.articles !== 1 ? "s" : ""} · <b>{formatNumber(featuredSpeaker.votes)}</b> vote{featuredSpeaker.votes !== 1 ? "s" : ""}</span><Link className="button small light" href={`/speakers/${featuredSpeaker.username}`}>Lire ses textes</Link></div></div>}
+      </div>
+      <div className="discover-list">
+        <div className="discover-list-head"><span className="discover-kicker">Nouvelles voix</span><Link className="arrow-link discover-link-top" href="/speakers">Toute la communauté <ArrowRight size={17}/></Link></div>
+        {newVoices.map((speaker) => <Link href={`/speakers/${speaker.username}`} className="discover-row" key={speaker.username}><Avatar initials={speaker.initials} color={speaker.color} size="md"/><span className="discover-row-info"><span className="discover-row-name"><b>{speaker.name}</b>{speaker.badge && <span className="discover-badge">{speaker.badge}</span>}</span><small>@{speaker.username} · {speaker.bio}</small><span className="discover-row-stats"><b>{speaker.articles}</b> article{speaker.articles !== 1 ? "s" : ""} · <b>{formatNumber(speaker.votes)}</b> vote{speaker.votes !== 1 ? "s" : ""}</span></span><span className="discover-row-go"><ArrowRight size={16}/></span></Link>)}
+        <div className="discover-cta"><div><b>Et toi, quelle est ton histoire ?</b><small>Rejoins les Young Speakers et publie ton premier texte.</small></div><Link className="button small" href="/become-speaker">Prendre la parole</Link></div>
+        <Link className="button outline discover-all" href="/speakers">Toute la communauté <ArrowRight size={17}/></Link>
+      </div>
+    </div></section>
 
     {currentChallenge && <section className="section"><div className="container"><div className="challenge-banner"><div className="challenge-icon">♡</div><div><span className="eyebrow">Challenge en cours</span><h2>{currentChallenge.title}</h2><p>{currentChallenge.description}</p><div className="progress"><span style={{ width: `${challengeProgress}%` }}/></div></div><div className="challenge-side"><b>{formatNumber(currentChallenge._count.participations)}</b><small>participant{currentChallenge._count.participations !== 1 ? "s" : ""}</small><Link className="button violet" href={`/challenges/${currentChallenge.slug}`}>Je participe</Link></div></div></div></section>}
 
