@@ -24,6 +24,23 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  # Déclenche /api/cron/reminders une fois par jour (annonces thème/challenge +
+  # rappels aux Young Speakers qui n'ont pas encore écrit). Sans ce service,
+  # l'endpoint existe mais n'est jamais appelé.
+  cron:
+    image: alpine:3.20
+    restart: unless-stopped
+    environment:
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET manquant}
+      CRON_SCHEDULE: ${CRON_SCHEDULE:-0 7 * * *}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "$$CRON_SCHEDULE wget -q -O- --header=\"Authorization: Bearer $$CRON_SECRET\" --post-data='' http://web:3901/api/cron/reminders >> /proc/1/fd/1 2>&1" > /etc/crontabs/root
+        crond -f -l 2
+    depends_on:
+      - web
+
   # Applies the Prisma schema (db push, refuses destructive changes) then bootstraps reference data.
   migrate:
     image: konanycode1/youngspeaker-migrate:latest
