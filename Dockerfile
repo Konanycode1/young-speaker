@@ -8,7 +8,15 @@ FROM base AS deps
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY prisma ./prisma
-RUN pnpm exec prisma generate
+# Le téléchargement du moteur Prisma échoue parfois ponctuellement (réseau,
+# plus fréquent sous émulation QEMU pour --platform linux/amd64) : on retente,
+# et on échoue pour de bon seulement après 3 tentatives.
+RUN n=0; until pnpm exec prisma generate; do \
+      n=$((n + 1)); \
+      [ $n -ge 3 ] && exit 1; \
+      echo "prisma generate a échoué (tentative $n/3), nouvel essai dans 5s…"; \
+      sleep 5; \
+    done
 
 FROM base AS builder
 # Inlined at build time (metadataBase, sitemap, robots): must match the public URL.
