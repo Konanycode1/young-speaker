@@ -12,7 +12,7 @@ const TERMS = [
   "enculer", "encule", "enfoire", "batard", "bordel", "couille", "chier", "nique", "niquer", "ntm", "fdp",
   "fils de pute", "ta gueule", "ferme ta gueule", "trou du cul", "va te faire foutre", "va crever",
   "tapette", "tarlouze", "gouine", "pede", "attarde",
-  "fuck", "fucking", "fucker", "motherfucker", "shit", "bitch", "asshole", "bastard", "cunt", "whore", "slut", "faggot", "retard",
+  "fuck", "fucking", "fucker", "motherfucker", "shit", "bitch", "asshole", "bastard", "cunt", "whore", "slut", "faggot",
   // propos racistes et discriminatoires
   "nigger", "nigga", "negre", "negresse", "negro", "bamboula", "bougnoule", "bicot", "crouille", "youpin", "chinetoque",
   "niakoue", "rital", "boche",
